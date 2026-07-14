@@ -45,6 +45,18 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 case IDM_TOGGLE:
                     if (g_app) g_app->Toggle();
                     return 0;
+                case IDM_SAT_0:
+                    if (g_app) g_app->SetSaturation(0.00f);
+                    return 0;
+                case IDM_SAT_25:
+                    if (g_app) g_app->SetSaturation(0.25f);
+                    return 0;
+                case IDM_SAT_50:
+                    if (g_app) g_app->SetSaturation(0.50f);
+                    return 0;
+                case IDM_SAT_75:
+                    if (g_app) g_app->SetSaturation(0.75f);
+                    return 0;
                 case IDM_QUIT:
                     DestroyWindow(hwnd);
                     return 0;
