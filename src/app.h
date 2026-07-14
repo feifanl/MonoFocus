@@ -4,9 +4,11 @@
 
 #include "overlay.h"
 
+struct Settings;
+
 // Single owner of all mutable state. Every change funnels through Apply(),
-// the state machine (PLAN §5 app). Settings and environment handling arrive
-// in later commits.
+// the state machine (PLAN §5 app). Environment handling arrives in a later
+// commit.
 
 enum class Mode { Off, FullscreenEffect, Overlay };   // Off | A | B
 
@@ -18,7 +20,7 @@ struct AppState {
 
 class App {
 public:
-    explicit App(HWND mainWnd);
+    App(HWND mainWnd, Settings& settings);
 
     void Toggle();                    // mono = !mono -> Apply
     void SetSaturation(float s);      // clamp [0,1] -> Apply
@@ -26,19 +28,23 @@ public:
     void BeginRegionSelect();         // enable mono if off, launch region_select
     void AddRegion(RECT r);           // region_select callback -> Apply
     void ClearRegions();              // regions.clear() -> Apply
-    void Shutdown();                  // clear effect / destroy overlay
+    void Shutdown();                  // clear effect / destroy overlay + save state
 
+    void RestoreFromSettings();       // restore mono/saturation/regions at launch
+    void OnSettingsReloaded();        // re-apply after a settings reload
     void FinishTransition();          // deferred flash-free drop (WM_APP_FINISH_TRANSITION)
 
     Mode CurrentMode() const { return current_; }
     const AppState& State() const { return state_; }
+    const Settings& CurrentSettings() const { return settings_; }
 
 private:
     void Apply();                     // THE state machine
 
-    HWND     mainWnd_;
-    AppState state_;
-    Mode     current_ = Mode::Off;
-    Overlay  overlay_;
-    bool     pendingClearFullscreen_ = false;
+    HWND      mainWnd_;
+    Settings& settings_;
+    AppState  state_;
+    Mode      current_ = Mode::Off;
+    Overlay   overlay_;
+    bool      pendingClearFullscreen_ = false;
 };

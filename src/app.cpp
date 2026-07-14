@@ -5,9 +5,14 @@
 #include "constants.h"
 #include "effect_fullscreen.h"
 #include "region_select.h"
+#include "settings.h"
 #include "tray.h"
 
-App::App(HWND mainWnd) : mainWnd_(mainWnd) {}
+App::App(HWND mainWnd, Settings& settings)
+    : mainWnd_(mainWnd), settings_(settings) {
+    // Saturation is a preference: honor it even when state isn't restored.
+    state_.saturation = std::clamp(settings_.saturation, 0.0f, 1.0f);
+}
 
 void App::Toggle() {
     state_.mono = !state_.mono;
@@ -48,9 +53,23 @@ void App::ClearRegions() {
 }
 
 void App::Shutdown() {
+    settings_.SaveState(state_);
     overlay_.Hide();
     FullscreenEffect::Clear();
     current_ = Mode::Off;
+}
+
+void App::RestoreFromSettings() {
+    state_.saturation = std::clamp(settings_.saturation, 0.0f, 1.0f);
+    state_.mono       = settings_.lastMono;
+    state_.regions    = settings_.lastRegions;
+    Apply();
+}
+
+void App::OnSettingsReloaded() {
+    // Pick up an edited saturation; hotkeys are re-registered by the caller.
+    state_.saturation = std::clamp(settings_.saturation, 0.0f, 1.0f);
+    Apply();
 }
 
 // The state machine. Desired mode: !mono -> Off; no regions -> A (fullscreen
@@ -105,6 +124,7 @@ void App::Apply() {
 
     current_ = desired;
     Tray::SyncState(*this);
+    settings_.SaveState(state_);
 }
 
 void App::FinishTransition() {

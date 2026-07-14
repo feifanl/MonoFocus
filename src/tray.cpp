@@ -7,6 +7,7 @@
 
 #include "app.h"
 #include "constants.h"
+#include "settings.h"
 
 namespace Tray {
 namespace {
@@ -191,11 +192,10 @@ void OnCallback(HWND hwnd, LPARAM lParam, App& app) {
             break;
         case WM_RBUTTONUP:
         case WM_CONTEXTMENU: {
-            const AppState& s = app.State();
-            // restore-state/autostart are settings-driven (wired in commits 8/9);
-            // show sensible defaults until then.
+            const AppState& s   = app.State();
+            const Settings& cfg = app.CurrentSettings();
             ShowMenu(hwnd, s.mono, !s.regions.empty(), s.saturation,
-                     /*restoreState*/true, /*autostart*/false);
+                     cfg.restoreState, cfg.autostart);
             break;
         }
         default:

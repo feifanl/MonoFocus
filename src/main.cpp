@@ -10,10 +10,13 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <magnification.h>
+#include <shellapi.h>
+#include <string>
 
 #include "app.h"
 #include "constants.h"
 #include "hotkeys.h"
+#include "settings.h"
 #include "tray.h"
 
 namespace {
@@ -22,7 +25,17 @@ namespace {
 UINT g_taskbarCreatedMsg = 0;
 
 // The single App instance (owned by wWinMain; alive for the whole message loop).
-App* g_app = nullptr;
+App*      g_app      = nullptr;
+Settings* g_settings = nullptr;
+
+// Shows one balloon summarizing any fields that were reset during load.
+void ShowLoadWarnings(const Settings& s) {
+    if (s.loadWarnings.empty()) return;
+    std::wstring msg = L"Some settings were invalid and reset to defaults:\n";
+    for (const auto& w : s.loadWarnings)
+        msg += L"\x2022 " + w + L"\n";
+    Tray::Balloon(kAppName, msg);
+}
 
 LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == g_taskbarCreatedMsg && g_taskbarCreatedMsg != 0) {
@@ -67,10 +80,33 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 case IDM_SAT_75:
                     if (g_app) g_app->SetSaturation(0.75f);
                     return 0;
+                case IDM_RESTORE_STATE:
+                    if (g_settings) {
+                        g_settings->restoreState = !g_settings->restoreState;
+                        WritePrivateProfileStringW(
+                            L"general", L"restore_state",
+                            g_settings->restoreState ? L"1" : L"0",
+                            Settings::Path().c_str());
+                    }
+                    return 0;
+                case IDM_OPEN_SETTINGS:
+                    ShellExecuteW(nullptr, L"open", Settings::Path().c_str(),
+                                  nullptr, nullptr, SW_SHOWNORMAL);
+                    return 0;
+                case IDM_RELOAD_SETTINGS:
+                    if (g_settings && g_app) {
+                        Hotkeys::UnregisterAll(hwnd);
+                        *g_settings = Settings::Load();
+                        Hotkeys::RegisterAll(hwnd, *g_settings);
+                        g_app->OnSettingsReloaded();
+                        ShowLoadWarnings(*g_settings);
+                        Tray::SyncState(*g_app);
+                    }
+                    return 0;
                 case IDM_QUIT:
                     DestroyWindow(hwnd);
                     return 0;
-                // Remaining menu commands are wired up in later commits.
+                // Autostart (IDM_AUTOSTART) is wired in commit 9.
                 default:
                     return 0;
             }
@@ -131,12 +167,17 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
         return 1;
     }
 
-    // 4. App state machine, hotkeys, tray icon.
-    App app(hwnd);
+    // 4. Settings, App state machine, tray icon, hotkeys.
+    Settings settings = Settings::Load();
+    g_settings = &settings;
+    App app(hwnd, settings);
     g_app = &app;
-    Hotkeys::RegisterAll(hwnd);
-    Tray::Add(hwnd);
+    Tray::Add(hwnd);                 // before RegisterAll so failure balloons show
     Tray::SyncState(app);
+    Hotkeys::RegisterAll(hwnd, settings);
+    ShowLoadWarnings(settings);
+    if (settings.restoreState)
+        app.RestoreFromSettings();
 
     // 5. Message loop.
     MSG m;
@@ -147,6 +188,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
 
     // 6. Teardown (Tray::Remove already ran in WM_DESTROY; idempotent).
     g_app = nullptr;
+    g_settings = nullptr;
     app.Shutdown();
     Hotkeys::UnregisterAll(hwnd);
     Tray::Remove();
