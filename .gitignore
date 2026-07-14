@@ -1,0 +1,11 @@
+# Misc
+PLAN.md
+SPEC.md
+
+# Build output
+/build/
+[Bb]uild/
+*.user
+*.suo
+CMakeCache.txt
+CMakeFiles/

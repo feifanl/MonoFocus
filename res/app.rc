@@ -1,0 +1,4 @@
+#include <windows.h>
+
+// Embed the application manifest (PerMonitorV2 DPI awareness + comctl32 v6).
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
