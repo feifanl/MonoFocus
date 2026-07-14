@@ -10,6 +10,7 @@ constexpr wchar_t kSelectClass[]   = L"MonoFocusRegionSelect";
 constexpr wchar_t kAppName[]       = L"MonoFocus";          // tray tip, %APPDATA% dir, Run value
 
 constexpr UINT WM_TRAY             = WM_APP + 1;            // tray callback
+constexpr UINT WM_APP_FINISH_TRANSITION = WM_APP + 2;      // deferred flash-free drop
 constexpr UINT kTimerRefresh       = 1;                     // overlay, 16 ms
 
 enum HotkeyId { HK_TOGGLE = 1, HK_SELECT, HK_CLEAR, HK_SAT_UP, HK_SAT_DOWN };

@@ -36,6 +36,10 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             if (g_app) Hotkeys::Dispatch(*g_app, wParam);
             return 0;
 
+        case WM_APP_FINISH_TRANSITION:
+            if (g_app) g_app->FinishTransition();
+            return 0;
+
         case WM_TRAY:
             if (g_app) Tray::OnCallback(hwnd, lParam, *g_app);
             return 0;

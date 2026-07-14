@@ -32,6 +32,9 @@ void App::BeginRegionSelect() {
     if (RegionSelect::IsActive()) return;
     RegionSelect::Begin(mainWnd_, state_.regions,
                         [this](RECT r) { this->AddRegion(r); });
+    // If Mode B is already up, exclude the freshly created veil from magnification.
+    if (overlay_.IsShown())
+        overlay_.RefreshFilterList();
 }
 
 void App::AddRegion(RECT r) {
@@ -45,32 +48,70 @@ void App::ClearRegions() {
 }
 
 void App::Shutdown() {
-    // Commit 3: only Mode A exists. Later commits also destroy the overlay here.
+    overlay_.Hide();
     FullscreenEffect::Clear();
     current_ = Mode::Off;
 }
 
-// The state machine. Desired mode: !mono -> Off; no regions -> A; else -> B.
-// Mode B is not implemented until commit 6, so it currently falls back to A.
+// The state machine. Desired mode: !mono -> Off; no regions -> A (fullscreen
+// effect); else -> B (overlay). Transitions are ordered flash-free (PLAN §2):
+// bring the new surface up, then drop the old one (deferred a message pass for
+// A->B so the overlay has rendered before the fullscreen gray is removed).
 void App::Apply() {
-    Mode desired = !state_.mono         ? Mode::Off
-                 : state_.regions.empty() ? Mode::FullscreenEffect
-                                          : Mode::Overlay;
-    if (desired == Mode::Overlay)
-        desired = Mode::FullscreenEffect;   // TODO(commit 6): real Mode B
+    const Mode desired = !state_.mono          ? Mode::Off
+                       : state_.regions.empty() ? Mode::FullscreenEffect
+                                                : Mode::Overlay;
 
-    switch (desired) {
-        case Mode::Off:
-            if (current_ != Mode::Off)
+    if (desired == current_) {
+        // Same mode: push saturation/region changes in place.
+        switch (current_) {
+            case Mode::FullscreenEffect:
+                FullscreenEffect::Set(state_.saturation);
+                break;
+            case Mode::Overlay:
+                overlay_.UpdateSaturation(state_.saturation);
+                overlay_.UpdateRegions(state_.regions);
+                break;
+            case Mode::Off:
+                break;
+        }
+    } else {
+        switch (desired) {
+            case Mode::Off:
+                // Reveal color: fully tear down both surfaces (both idempotent).
                 FullscreenEffect::Clear();
-            break;
-        case Mode::FullscreenEffect:
-            FullscreenEffect::Set(state_.saturation);
-            break;
-        case Mode::Overlay:
-            break;   // unreachable in commit 3
-    }
-    current_ = desired;
+                overlay_.Hide();
+                break;
 
+            case Mode::FullscreenEffect:
+                // Fullscreen gray covers everything, so the overlay (if any) can
+                // drop immediately without a color flash.
+                FullscreenEffect::Set(state_.saturation);
+                overlay_.Hide();
+                break;
+
+            case Mode::Overlay:
+                // Bring the overlay up first. If a fullscreen effect is active
+                // (A->B), it keeps the screen gray until the overlay has painted;
+                // defer clearing it one message pass to stay flash-free.
+                overlay_.Show(state_.saturation, state_.regions);
+                if (current_ == Mode::FullscreenEffect) {
+                    pendingClearFullscreen_ = true;
+                    PostMessageW(mainWnd_, WM_APP_FINISH_TRANSITION, 0, 0);
+                }
+                break;
+        }
+    }
+
+    current_ = desired;
     Tray::SyncState(*this);
+}
+
+void App::FinishTransition() {
+    if (!pendingClearFullscreen_) return;
+    pendingClearFullscreen_ = false;
+    // Only clear if we actually settled in Mode B; a rapid follow-up transition
+    // may already own the fullscreen effect (see Off/A paths, which manage it).
+    if (current_ == Mode::Overlay)
+        FullscreenEffect::Clear();
 }
