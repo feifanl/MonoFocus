@@ -12,6 +12,17 @@ Simple -- five hotkeys, three features.
 - **True-color regions** - while desaturated, create rectangles that remain in-color.
 - **No install, no admin, no dependencies** - a single ~200 KB `monofocus.exe`.
 
+## Contents
+
+- [How it works](#how-it-works)
+- [Default hotkeys](#default-hotkeys) - [Region select mode](#region-select-mode)
+- [Tray menu](#tray-menu)
+- [Getting started](#getting-started) - [Build from source](#build-from-source)
+- [Install / uninstall](#install--uninstall)
+- [Settings](#settings)
+- [Known limitations](#known-limitations)
+- [Troubleshooting](#troubleshooting)
+
 ## How it works
 
 Two rendering modes, both built on the Windows Magnification API:
