@@ -22,7 +22,8 @@ bool    g_added   = false;
 // --- runtime-drawn icons -------------------------------------------------
 
 // Draws a 32x32 anti-aliased filled disc into a 32-bit straight-alpha bitmap
-// and wraps it in an HICON. on -> green (#2ea043), off -> gray (#8b949e).
+// and wraps it in an HICON. on (mono active) -> gray (#8b949e),
+// off (normal color) -> green (#2ea043).
 HICON MakeIcon(bool on) {
     constexpr int S = 32;
 
@@ -45,9 +46,10 @@ HICON MakeIcon(bool on) {
     ReleaseDC(nullptr, hdc);
     if (!color) return nullptr;
 
-    const uint32_t r = on ? 0x2e : 0x8b;
-    const uint32_t g = on ? 0xa0 : 0x94;
-    const uint32_t b = on ? 0x43 : 0x9e;
+    // on (monochrome active) = gray disc; off (normal color) = green disc.
+    const uint32_t r = on ? 0x8b : 0x2e;
+    const uint32_t g = on ? 0x94 : 0xa0;
+    const uint32_t b = on ? 0x9e : 0x43;
 
     auto* px = static_cast<uint32_t*>(bits);
     const double cx = (S - 1) / 2.0;

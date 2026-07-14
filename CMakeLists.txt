@@ -15,6 +15,10 @@ add_executable(monofocus WIN32 ${SOURCES} res/app.rc)
 target_compile_definitions(monofocus PRIVATE
     UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
 
+# Source (and narrow-exec) charset is UTF-8 so non-ASCII literals like the
+# em-dash in the tray tooltip decode correctly instead of turning into mojibake.
+target_compile_options(monofocus PRIVATE /utf-8)
+
 target_link_libraries(monofocus PRIVATE
     magnification user32 gdi32 shell32 comctl32 shlwapi advapi32 ole32 wtsapi32)
 
