@@ -52,6 +52,9 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 case IDM_SELECT:
                     if (g_app) g_app->BeginRegionSelect();
                     return 0;
+                case IDM_CLEAR:
+                    if (g_app) g_app->ClearRegions();
+                    return 0;
                 case IDM_SAT_0:
                     if (g_app) g_app->SetSaturation(0.00f);
                     return 0;

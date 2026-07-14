@@ -11,6 +11,7 @@ void RegisterAll(HWND hwnd) {
     const UINT ca = MOD_CONTROL | MOD_ALT | MOD_NOREPEAT;
     RegisterHotKey(hwnd, HK_TOGGLE,   ca, 'M');
     RegisterHotKey(hwnd, HK_SELECT,   ca, 'R');
+    RegisterHotKey(hwnd, HK_CLEAR,    ca, 'X');
     RegisterHotKey(hwnd, HK_SAT_UP,   ca, VK_UP);
     RegisterHotKey(hwnd, HK_SAT_DOWN, ca, VK_DOWN);
 }
@@ -18,6 +19,7 @@ void RegisterAll(HWND hwnd) {
 void UnregisterAll(HWND hwnd) {
     UnregisterHotKey(hwnd, HK_TOGGLE);
     UnregisterHotKey(hwnd, HK_SELECT);
+    UnregisterHotKey(hwnd, HK_CLEAR);
     UnregisterHotKey(hwnd, HK_SAT_UP);
     UnregisterHotKey(hwnd, HK_SAT_DOWN);
 }
@@ -29,6 +31,9 @@ void Dispatch(App& app, WPARAM hotkeyId) {
             break;
         case HK_SELECT:
             app.BeginRegionSelect();
+            break;
+        case HK_CLEAR:
+            app.ClearRegions();
             break;
         case HK_SAT_UP:
             app.StepSaturation(+1);
