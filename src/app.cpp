@@ -4,6 +4,7 @@
 
 #include "constants.h"
 #include "effect_fullscreen.h"
+#include "region_select.h"
 #include "tray.h"
 
 App::App(HWND mainWnd) : mainWnd_(mainWnd) {}
@@ -20,6 +21,22 @@ void App::SetSaturation(float s) {
 
 void App::StepSaturation(int dir) {
     SetSaturation(state_.saturation + dir * kSatStep);
+}
+
+void App::BeginRegionSelect() {
+    // Selecting a color region only makes sense against gray: enable mono first.
+    if (!state_.mono) {
+        state_.mono = true;
+        Apply();
+    }
+    if (RegionSelect::IsActive()) return;
+    RegionSelect::Begin(mainWnd_, state_.regions,
+                        [this](RECT r) { this->AddRegion(r); });
+}
+
+void App::AddRegion(RECT r) {
+    state_.regions.push_back(r);
+    Apply();
 }
 
 void App::ClearRegions() {

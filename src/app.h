@@ -22,6 +22,8 @@ public:
     void Toggle();                    // mono = !mono -> Apply
     void SetSaturation(float s);      // clamp [0,1] -> Apply
     void StepSaturation(int dir);     // +/- kSatStep -> Apply
+    void BeginRegionSelect();         // enable mono if off, launch region_select
+    void AddRegion(RECT r);           // region_select callback -> Apply
     void ClearRegions();              // regions.clear() -> Apply
     void Shutdown();                  // clear effect / destroy overlay
 

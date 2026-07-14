@@ -10,12 +10,14 @@ void RegisterAll(HWND hwnd) {
     // MOD_NOREPEAT so held keys don't autofire.
     const UINT ca = MOD_CONTROL | MOD_ALT | MOD_NOREPEAT;
     RegisterHotKey(hwnd, HK_TOGGLE,   ca, 'M');
+    RegisterHotKey(hwnd, HK_SELECT,   ca, 'R');
     RegisterHotKey(hwnd, HK_SAT_UP,   ca, VK_UP);
     RegisterHotKey(hwnd, HK_SAT_DOWN, ca, VK_DOWN);
 }
 
 void UnregisterAll(HWND hwnd) {
     UnregisterHotKey(hwnd, HK_TOGGLE);
+    UnregisterHotKey(hwnd, HK_SELECT);
     UnregisterHotKey(hwnd, HK_SAT_UP);
     UnregisterHotKey(hwnd, HK_SAT_DOWN);
 }
@@ -24,6 +26,9 @@ void Dispatch(App& app, WPARAM hotkeyId) {
     switch (hotkeyId) {
         case HK_TOGGLE:
             app.Toggle();
+            break;
+        case HK_SELECT:
+            app.BeginRegionSelect();
             break;
         case HK_SAT_UP:
             app.StepSaturation(+1);
