@@ -80,6 +80,8 @@ Both install with no admin:
    winget install Kitware.CMake Microsoft.VisualStudio.2022.BuildTools
    ```
 
+   Add "Desktop development with C++" workload.
+
 2. **Open a new PowerShell window.**
 3. **Get the code:**
 
@@ -106,8 +108,9 @@ The result is `build\Release\monofocus.exe` (~220 KB). Copy it anywhere - there 
 **Build not working?**
 
 - `cmake : ... not recognized` - open a **new** terminal (step 2), or sign out and back in.
-- `No CMAKE_CXX_COMPILER could be found` - the C++ workload is missing. Rerun the Build
-  Tools installer and add the **Desktop development with C++** workload.
+- `No CMAKE_CXX_COMPILER could be found` - the C++ workload is missing. Open "Visual Studio
+  Installer" from the Start Menu, click "Modify" on "Visual Studio Build Tools 2022" and add
+  the **Desktop development with C++** workload.
 - `Could not find ... Visual Studio 17 2022` - you have a different VS version; change the
   `-G` value to match (e.g. `"Visual Studio 16 2019"`).
 
