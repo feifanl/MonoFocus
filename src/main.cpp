@@ -1,10 +1,6 @@
 // MonoFocus - main.cpp
 // Process lifecycle + message routing (PLAN §5).
 //
-// Commit 1 scope: single-instance mutex, MagInitialize, a hidden top-level
-// message window, and the message loop. Tray, hotkeys, and the App state
-// machine are wired in later commits.
-//
 // Note on the window: PLAN §5 mentions an HWND_MESSAGE parent, but later
 // commits depend on broadcast messages (the registered "TaskbarCreated"
 // message, WM_DISPLAYCHANGE, WM_POWERBROADCAST) which message-only windows
@@ -12,17 +8,43 @@
 // never shown). It is invisible all the same and does get the broadcasts.
 
 #include <windows.h>
+#include <commctrl.h>
 #include <magnification.h>
 
 #include "constants.h"
+#include "tray.h"
 
 namespace {
 
+// Registered broadcast sent by Explorer when the taskbar is (re)created.
+UINT g_taskbarCreatedMsg = 0;
+
 LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (msg == g_taskbarCreatedMsg && g_taskbarCreatedMsg != 0) {
+        Tray::ReAdd();
+        return 0;
+    }
+
     switch (msg) {
+        case WM_TRAY:
+            Tray::OnCallback(hwnd, lParam);
+            return 0;
+
+        case WM_COMMAND:
+            switch (LOWORD(wParam)) {
+                case IDM_QUIT:
+                    DestroyWindow(hwnd);
+                    return 0;
+                // Remaining menu commands are wired up in later commits.
+                default:
+                    return 0;
+            }
+
         case WM_DESTROY:
+            Tray::Remove();
             PostQuitMessage(0);
             return 0;
+
         default:
             return DefWindowProcW(hwnd, msg, wParam, lParam);
     }
@@ -37,8 +59,6 @@ HWND CreateMessageWindow(HINSTANCE hInst) {
     if (!RegisterClassExW(&wc))
         return nullptr;
 
-    // WS_POPUP, never shown -> invisible, but still a top-level window so it
-    // receives display/power/taskbar broadcasts in later commits.
     return CreateWindowExW(
         0, kMainClass, kAppName, WS_POPUP,
         0, 0, 0, 0, nullptr, nullptr, hInst, nullptr);
@@ -62,6 +82,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
         return 1;
     }
 
+    // comctl32 v6 for themed menus (manifest declares the dependency).
+    INITCOMMONCONTROLSEX icc = { sizeof(icc), ICC_STANDARD_CLASSES };
+    InitCommonControlsEx(&icc);
+
+    g_taskbarCreatedMsg = RegisterWindowMessageW(L"TaskbarCreated");
+
     // 3. Hidden top-level message window.
     HWND hwnd = CreateMessageWindow(hInstance);
     if (!hwnd) {
@@ -70,14 +96,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
         return 1;
     }
 
-    // 4. Message loop.
+    // 4. Tray icon.
+    Tray::Add(hwnd);
+
+    // 5. Message loop.
     MSG m;
     while (GetMessageW(&m, nullptr, 0, 0) > 0) {
         TranslateMessage(&m);
         DispatchMessageW(&m);
     }
 
-    // 5. Teardown.
+    // 6. Teardown (Tray::Remove already ran in WM_DESTROY; idempotent).
+    Tray::Remove();
     MagUninitialize();
     if (mutex) {
         ReleaseMutex(mutex);
