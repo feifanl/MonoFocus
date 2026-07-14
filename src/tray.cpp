@@ -3,7 +3,9 @@
 #include <shellapi.h>
 #include <cstdint>
 #include <cmath>
+#include <cstdio>
 
+#include "app.h"
 #include "constants.h"
 
 namespace Tray {
@@ -165,18 +167,37 @@ void Remove() {
     if (g_iconOff) { DestroyIcon(g_iconOff); g_iconOff = nullptr; }
 }
 
-void OnCallback(HWND hwnd, LPARAM lParam) {
+void SyncState(const App& app) {
+    if (!g_added) return;
+    EnsureIcons();
+    const AppState& s = app.State();
+
+    NOTIFYICONDATAW nid = BaseData();
+    nid.uFlags = NIF_ICON | NIF_TIP;
+    nid.hIcon  = s.mono ? g_iconOn : g_iconOff;
+    if (s.mono) {
+        const int grayPct = static_cast<int>((1.0f - s.saturation) * 100.0f + 0.5f);
+        swprintf_s(nid.szTip, L"%s — on (gray %d%%)", kAppName, grayPct);
+    } else {
+        swprintf_s(nid.szTip, L"%s — off", kAppName);
+    }
+    Shell_NotifyIconW(NIM_MODIFY, &nid);
+}
+
+void OnCallback(HWND hwnd, LPARAM lParam, App& app) {
     switch (LOWORD(lParam)) {
         case WM_LBUTTONUP:
-            // Left-click toggles monochrome (handler is stubbed until commit 3).
-            PostMessageW(hwnd, WM_COMMAND, MAKEWPARAM(IDM_TOGGLE, 0), 0);
+            app.Toggle();
             break;
         case WM_RBUTTONUP:
-        case WM_CONTEXTMENU:
-            // Commit 2: default state; commit 3 feeds live App state in.
-            ShowMenu(hwnd, /*monoOn*/false, /*hasRegions*/false,
-                     /*saturation*/0.0f, /*restoreState*/true, /*autostart*/false);
+        case WM_CONTEXTMENU: {
+            const AppState& s = app.State();
+            // restore-state/autostart are settings-driven (wired in commits 8/9);
+            // show sensible defaults until then.
+            ShowMenu(hwnd, s.mono, !s.regions.empty(), s.saturation,
+                     /*restoreState*/true, /*autostart*/false);
             break;
+        }
         default:
             break;
     }

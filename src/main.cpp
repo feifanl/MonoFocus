@@ -11,7 +11,9 @@
 #include <commctrl.h>
 #include <magnification.h>
 
+#include "app.h"
 #include "constants.h"
+#include "hotkeys.h"
 #include "tray.h"
 
 namespace {
@@ -19,19 +21,30 @@ namespace {
 // Registered broadcast sent by Explorer when the taskbar is (re)created.
 UINT g_taskbarCreatedMsg = 0;
 
+// The single App instance (owned by wWinMain; alive for the whole message loop).
+App* g_app = nullptr;
+
 LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == g_taskbarCreatedMsg && g_taskbarCreatedMsg != 0) {
         Tray::ReAdd();
+        if (g_app) Tray::SyncState(*g_app);
         return 0;
     }
 
     switch (msg) {
+        case WM_HOTKEY:
+            if (g_app) Hotkeys::Dispatch(*g_app, wParam);
+            return 0;
+
         case WM_TRAY:
-            Tray::OnCallback(hwnd, lParam);
+            if (g_app) Tray::OnCallback(hwnd, lParam, *g_app);
             return 0;
 
         case WM_COMMAND:
             switch (LOWORD(wParam)) {
+                case IDM_TOGGLE:
+                    if (g_app) g_app->Toggle();
+                    return 0;
                 case IDM_QUIT:
                     DestroyWindow(hwnd);
                     return 0;
@@ -96,8 +109,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
         return 1;
     }
 
-    // 4. Tray icon.
+    // 4. App state machine, hotkeys, tray icon.
+    App app(hwnd);
+    g_app = &app;
+    Hotkeys::RegisterAll(hwnd);
     Tray::Add(hwnd);
+    Tray::SyncState(app);
 
     // 5. Message loop.
     MSG m;
@@ -107,6 +124,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
     }
 
     // 6. Teardown (Tray::Remove already ran in WM_DESTROY; idempotent).
+    g_app = nullptr;
+    app.Shutdown();
+    Hotkeys::UnregisterAll(hwnd);
     Tray::Remove();
     MagUninitialize();
     if (mutex) {
