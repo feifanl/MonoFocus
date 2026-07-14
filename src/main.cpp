@@ -11,6 +11,7 @@
 #include <commctrl.h>
 #include <magnification.h>
 #include <shellapi.h>
+#include <wtsapi32.h>
 #include <string>
 
 #include "app.h"
@@ -53,6 +54,21 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             if (g_app) g_app->FinishTransition();
             return 0;
 
+        case WM_DISPLAYCHANGE:
+        case WM_DPICHANGED:
+            if (g_app) g_app->OnEnvironmentChange();
+            return 0;
+
+        case WM_POWERBROADCAST:
+            if (g_app && wParam == PBT_APMRESUMEAUTOMATIC)
+                g_app->OnEnvironmentChange();
+            return TRUE;
+
+        case WM_WTSSESSION_CHANGE:
+            if (g_app && wParam == WTS_SESSION_UNLOCK)
+                g_app->OnEnvironmentChange();
+            return 0;
+
         case WM_TRAY:
             if (g_app) Tray::OnCallback(hwnd, lParam, *g_app);
             return 0;
@@ -89,6 +105,9 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                             Settings::Path().c_str());
                     }
                     return 0;
+                case IDM_AUTOSTART:
+                    if (g_settings) g_settings->SetAutostart(!g_settings->autostart);
+                    return 0;
                 case IDM_OPEN_SETTINGS:
                     ShellExecuteW(nullptr, L"open", Settings::Path().c_str(),
                                   nullptr, nullptr, SW_SHOWNORMAL);
@@ -106,7 +125,6 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 case IDM_QUIT:
                     DestroyWindow(hwnd);
                     return 0;
-                // Autostart (IDM_AUTOSTART) is wired in commit 9.
                 default:
                     return 0;
             }
@@ -166,6 +184,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
         if (mutex) CloseHandle(mutex);
         return 1;
     }
+    // Session lock/unlock notifications (defensive re-apply on unlock).
+    WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION);
 
     // 4. Settings, App state machine, tray icon, hotkeys.
     Settings settings = Settings::Load();
@@ -191,6 +211,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int) {
     g_settings = nullptr;
     app.Shutdown();
     Hotkeys::UnregisterAll(hwnd);
+    WTSUnRegisterSessionNotification(hwnd);
     Tray::Remove();
     MagUninitialize();
     if (mutex) {

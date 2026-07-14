@@ -32,6 +32,7 @@ public:
 
     void RestoreFromSettings();       // restore mono/saturation/regions at launch
     void OnSettingsReloaded();        // re-apply after a settings reload
+    void OnEnvironmentChange();       // display/resume/unlock: clip regions, rebuild
     void FinishTransition();          // deferred flash-free drop (WM_APP_FINISH_TRANSITION)
 
     Mode CurrentMode() const { return current_; }

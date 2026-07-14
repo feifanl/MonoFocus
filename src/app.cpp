@@ -72,6 +72,31 @@ void App::OnSettingsReloaded() {
     Apply();
 }
 
+void App::OnEnvironmentChange() {
+    // Re-read the virtual screen; clip regions to it, drop fully off-screen ones.
+    RECT vs;
+    vs.left   = GetSystemMetrics(SM_XVIRTUALSCREEN);
+    vs.top    = GetSystemMetrics(SM_YVIRTUALSCREEN);
+    vs.right  = vs.left + GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    vs.bottom = vs.top  + GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+    std::vector<RECT> kept;
+    for (const RECT& r : state_.regions) {
+        RECT c;
+        if (IntersectRect(&c, &r, &vs) && c.right > c.left && c.bottom > c.top)
+            kept.push_back(c);                          // partially off-screen -> clipped
+        // fully off-screen -> dropped
+    }
+    state_.regions = std::move(kept);
+
+    // Force a fresh rebuild/re-apply for the new geometry (also re-applies the
+    // effect defensively after resume/unlock, where it may have been lost).
+    if (current_ == Mode::Overlay)
+        overlay_.Hide();
+    current_ = Mode::Off;
+    Apply();
+}
+
 // The state machine. Desired mode: !mono -> Off; no regions -> A (fullscreen
 // effect); else -> B (overlay). Transitions are ordered flash-free (PLAN §2):
 // bring the new surface up, then drop the old one (deferred a message pass for

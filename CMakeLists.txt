@@ -16,7 +16,7 @@ target_compile_definitions(monofocus PRIVATE
     UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
 
 target_link_libraries(monofocus PRIVATE
-    magnification user32 gdi32 shell32 comctl32 shlwapi advapi32 ole32)
+    magnification user32 gdi32 shell32 comctl32 shlwapi advapi32 ole32 wtsapi32)
 
 # We embed our own manifest via res/app.rc; stop the linker from generating a
 # second one (which would collide as duplicate MANIFEST resource id 1).
